@@ -1,0 +1,384 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #171226;
+  --panel: #221a38;
+  --card: #2c2248;
+  --card-hover: #382b5c;
+  --border: #473873;
+  --accent: #e22472;
+  --cyan: #24c4e8;
+  --gold: #f5b40f;
+  --red: #f2142c;
+  --text: #f4f0ff;
+  --muted: #a699c9;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  font-size: 12px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+.topbar {
+  background: var(--panel);
+  border-bottom: 2px solid var(--accent);
+  padding: 9px 11px 9px;
+  flex-shrink: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.badge-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  flex-shrink: 0;
+}
+
+.title-row h1 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  flex: 1;
+}
+
+.target-info {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.target-info.empty {
+  color: var(--muted);
+}
+
+/* 压力槽模块 */
+.stress-box {
+  margin-top: 7px;
+  background: #161026;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 8px;
+}
+
+.stress-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stress-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stress-stage {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #14364a;
+  color: #6ee7ff;
+}
+
+.stress-stage.warn {
+  background: #4d3508;
+  color: #ffd859;
+}
+
+.stress-stage.over {
+  background: #540b1d;
+  color: #ff6b85;
+}
+
+.stress-toggles {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.btn-mini {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.btn-mini:hover {
+  border-color: var(--cyan);
+  color: var(--text);
+}
+
+.btn-mini.on {
+  background: #1a3b52;
+  border-color: var(--cyan);
+  color: #b5f3ff;
+}
+
+.stress-bar-preview {
+  position: relative;
+  height: 7px;
+  background: #271e3f;
+  border-radius: 3px;
+  margin: 6px 0;
+  overflow: hidden;
+  border: 1px solid #44356e;
+}
+
+.stress-fill-preview {
+  height: 100%;
+  width: 0%;
+  background: var(--cyan);
+  transition: width 0.12s ease, background 0.12s ease;
+}
+
+.stress-mid-tick {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff275;
+  transform: translateX(-1px);
+  opacity: 0.9;
+}
+
+.stress-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-step {
+  flex: 0 0 34px;
+  height: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-step:hover {
+  background: var(--card-hover);
+  border-color: var(--cyan);
+}
+
+.btn-step:active {
+  transform: scale(0.95);
+}
+
+.btn-step:disabled,
+.btn-mini:disabled,
+.stress-inputs input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stress-inputs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.stress-inputs input {
+  width: 52px;
+  height: 24px;
+  background: #0e0a1a;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  text-align: center;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+}
+
+.stress-inputs input:focus {
+  border-color: var(--cyan);
+}
+
+.stress-inputs .slash {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.controls-row {
+  margin-top: 7px;
+  display: flex;
+  gap: 6px;
+}
+
+#search-input {
+  flex: 1;
+  background: #140f22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 11.5px;
+  outline: none;
+}
+
+#search-input:focus {
+  border-color: var(--cyan);
+}
+
+.btn-mode,
+.btn-danger {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.btn-mode:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.btn-danger {
+  background: #3d142a;
+  border-color: #8a204d;
+  color: #ffb8d2;
+}
+
+.btn-danger:hover {
+  background: var(--accent);
+  border-color: #ff6ca5;
+  color: #fff;
+}
+
+.btn-danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.status-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 14px;
+}
+
+.status-container::-webkit-scrollbar {
+  width: 6px;
+}
+.status-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.group-block {
+  margin-bottom: 10px;
+}
+
+.group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 2px 0 6px 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #332752;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.status-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 3px 5px;
+  background: var(--card);
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.status-btn:hover {
+  background: var(--card-hover);
+  border-color: var(--border);
+}
+
+.status-btn:active {
+  transform: scale(0.95);
+}
+
+.status-btn.active {
+  background: #421738;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(226, 36, 114, 0.35) inset;
+}
+
+.status-btn.active::after {
+  content: "✓";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #ff7ab0;
+}
+
+.status-btn img {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.status-btn span {
+  font-size: 10.5px;
+  line-height: 1.1;
+  text-align: center;
+}

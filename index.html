@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>孟子的战斗轮状态标</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title-row">
+      <span class="badge-dot"></span>
+      <h1>孟子战斗轮 · 状态与压力</h1>
+      <button id="btn-clear" class="btn-danger" title="清空当前选中棋子的全部状态标">清状态</button>
+    </div>
+    <div id="target-info" class="target-info">请在地图上选中或右键一个角色棋子</div>
+
+    <!-- 动态压力槽控制面板 -->
+    <section class="stress-box">
+      <div class="stress-head">
+        <span class="stress-title">压力槽</span>
+        <span id="stress-stage" class="stress-stage">正常</span>
+        <div class="stress-toggles">
+          <button id="btn-stress-pos" class="btn-mini" title="切换压力槽垂直位置">名牌下</button>
+          <button id="btn-stress-vis" class="btn-mini" title="显示或隐藏棋子下方压力槽">显示槽</button>
+        </div>
+      </div>
+      <div class="stress-bar-preview">
+        <div id="stress-fill-preview" class="stress-fill-preview"></div>
+        <div class="stress-mid-tick" title="50% 临界点"></div>
+      </div>
+      <div class="stress-controls">
+        <button class="btn-step" data-delta="-5">-5</button>
+        <button class="btn-step" data-delta="-1">-1</button>
+        <div class="stress-inputs">
+          <input id="stress-cur" type="number" min="0" max="999" value="0" title="当前压力值" />
+          <span class="slash">/</span>
+          <input id="stress-max" type="number" min="1" max="999" value="10" title="压力上限" />
+        </div>
+        <button class="btn-step" data-delta="1">+1</button>
+        <button class="btn-step" data-delta="5">+5</button>
+      </div>
+    </section>
+
+    <div class="controls-row">
+      <input id="search-input" type="text" placeholder="搜索状态（如：出血、措手、50%）..." />
+      <button id="btn-layout" class="btn-mode" title="切换图标排队方式">绕边排队</button>
+    </div>
+  </header>
+
+  <main id="status-container" class="status-container"></main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
