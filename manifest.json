@@ -1,15 +1,15 @@
 {
   "name": "孟子的战斗轮状态标",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "manifest_version": 1,
-  "description": "《孟子的战斗轮规则》专属像素状态图标与动态压力槽：右键勾选自动排队、内置 50% 临界点与 100% 过载变色压力条。",
+  "description": "《孟子的战斗轮规则》专属像素状态标、HP 血条与动态压力槽。",
   "icon": "/mencius-obr/icon.svg",
   "action": {
-    "title": "孟子战斗轮状态与压力",
+    "title": "孟子战斗轮状态与数值",
     "icon": "/mencius-obr/icon.svg",
     "popover": "/mencius-obr/index.html",
-    "height": 620,
-    "width": 382
+    "height": 660,
+    "width": 386
   },
   "background_url": "/mencius-obr/background.html"
 }

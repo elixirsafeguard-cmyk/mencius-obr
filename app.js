@@ -1,9 +1,11 @@
-import OBR, { buildImage, buildShape, buildText } from "https://esm.sh/@owlbear-rodeo/sdk@3";
+import OBR, { buildImage, buildShape } from "https://esm.sh/@owlbear-rodeo/sdk@3";
 
 const EXT_ID = "com.mencius.combat.status";
 const META_KEY = `${EXT_ID}/badge`;
-const STRESS_DATA_KEY = `${EXT_ID}/stress`;
-const STRESS_PART_KEY = `${EXT_ID}/stressPart`;
+const BARS_DATA_KEY = `${EXT_ID}/bars`;
+const OLD_STRESS_DATA_KEY = `${EXT_ID}/stress`;
+const BAR_PART_KEY = `${EXT_ID}/barPart`;
+const OLD_STRESS_PART_KEY = `${EXT_ID}/stressPart`;
 const LAYOUT_STORAGE_KEY = `${EXT_ID}/layoutMode`;
 const BASE_URL = new URL("./", window.location.href).href;
 
@@ -205,21 +207,28 @@ const STATUS_LIST = [
 ];
 const STATUS_BY_KEY = Object.fromEntries(STATUS_LIST.map((s) => [s.key, s]));
 
+// 前 5 个精确镶嵌在环边（与你的截图完全一致），第 6+ 个自动溢到左右外翼，绝不遮挡下方 HP/压力条
 const RIM_SLOTS = [
-  [-0.37, -0.34],
-  [-0.45, -0.02],
-  [-0.37,  0.30],
-  [ 0.37,  0.30],
-  [ 0.45, -0.02],
-  [-0.15,  0.49],
-  [ 0.15,  0.49],
+  [-0.37, -0.34], // 1: 左上 10:30
+  [-0.45, -0.02], // 2: 正左 9:00
+  [-0.37,  0.30], // 3: 左下 7:30
+  [ 0.37,  0.30], // 4: 右下 4:30
+  [ 0.45, -0.02], // 5: 正右 3:00
+  [-0.64, -0.18], // 6: 左外上翼
+  [-0.64,  0.14], // 7: 左外下翼
+  [ 0.64,  0.14], // 8: 右外下翼
+  [ 0.64, -0.18], // 9: 右外上翼
 ];
 
 let layoutMode = localStorage.getItem(LAYOUT_STORAGE_KEY) || "rim";
 let fixedTargetIds = [];
 let currentTargetIds = [];
 let activeKeyCounts = new Map();
-let currentStress = { current: 0, max: 10, visible: false, pos: "under_name" };
+let currentBars = {
+  hp:     { current: 12, max: 12, visible: false },
+  stress: { current: 0,  max: 10, visible: false },
+  pos: "tight", // 默认 "tight"：直接坐落在原「比尔」名牌位；可选 "under_name"
+};
 let busy = false;
 
 const elTargetInfo = document.getElementById("target-info");
@@ -228,23 +237,48 @@ const elSearch = document.getElementById("search-input");
 const elBtnClear = document.getElementById("btn-clear");
 const elBtnLayout = document.getElementById("btn-layout");
 
-const elStressCur = document.getElementById("stress-cur");
-const elStressMax = document.getElementById("stress-max");
+const elHpCur = document.getElementById("hp-cur");
+const elHpMax = document.getElementById("hp-max");
+const elStCur = document.getElementById("st-cur");
+const elStMax = document.getElementById("st-max");
+const elBtnHpVis = document.getElementById("btn-hp-vis");
+const elBtnStVis = document.getElementById("btn-st-vis");
+const elBtnBarPos = document.getElementById("btn-bar-pos");
 const elStressStage = document.getElementById("stress-stage");
-const elStressPreview = document.getElementById("stress-fill-preview");
-const elBtnStressPos = document.getElementById("btn-stress-pos");
-const elBtnStressVis = document.getElementById("btn-stress-vis");
 const stepButtons = Array.from(document.querySelectorAll(".btn-step"));
 
-function getStressPalette(cur, max) {
+function normalizeBars(token) {
+  const raw = token?.metadata?.[BARS_DATA_KEY];
+  const old = token?.metadata?.[OLD_STRESS_DATA_KEY];
+  const hpRaw = raw?.hp || {};
+  const stRaw = raw?.stress || old || {};
+  return {
+    hp: {
+      current: Math.max(0, Number.isFinite(Number(hpRaw.current)) ? Math.round(Number(hpRaw.current)) : 12),
+      max: Math.max(1, Number.isFinite(Number(hpRaw.max)) ? Math.round(Number(hpRaw.max)) : 12),
+      visible: Boolean(hpRaw.visible),
+    },
+    stress: {
+      current: Math.max(0, Number.isFinite(Number(stRaw.current)) ? Math.round(Number(stRaw.current)) : 0),
+      max: Math.max(1, Number.isFinite(Number(stRaw.max)) ? Math.round(Number(stRaw.max)) : 10),
+      visible: Boolean(stRaw.visible),
+    },
+    pos: raw?.pos === "under_name" ? "under_name" : "tight",
+  };
+}
+
+function getHpVisual(cur, max) {
   const ratio = max > 0 ? cur / max : 0;
-  if (ratio >= 1) {
-    return { fill: "#d91432", border: "#ff4769", stage: "100%过载", cls: "over" };
-  }
-  if (ratio >= 0.5) {
-    return { fill: "#d4820a", border: "#ffd23f", stage: "50%临界", cls: "warn" };
-  }
-  return { fill: "#169cc2", border: "#ffffff", stage: "正常", cls: "" };
+  if (ratio <= 0.25) return { bgFile: "bar_hp_low.png",  fill: "#e61938" };
+  if (ratio <= 0.50) return { bgFile: "bar_hp_mid.png",  fill: "#e09412" };
+  return                    { bgFile: "bar_hp_high.png", fill: "#28c268" };
+}
+
+function getStressVisual(cur, max) {
+  const ratio = max > 0 ? cur / max : 0;
+  if (ratio >= 1.0) return { bgFile: "bar_st_over.png", fill: "#d91432", stage: "100%过载", cls: "over" };
+  if (ratio >= 0.5) return { bgFile: "bar_st_warn.png", fill: "#d68c0c", stage: "50%临界",  cls: "warn" };
+  return                   { bgFile: "bar_st_norm.png", fill: "#1ba3cc", stage: "正常",     cls: "" };
 }
 
 function getSlotOffset(index, tokenSize) {
@@ -265,7 +299,7 @@ function getSlotOffset(index, tokenSize) {
   const extra = index - RIM_SLOTS.length;
   return {
     x: (-0.42 + (extra % 4) * 0.28) * tokenSize,
-    y: (0.76 + Math.floor(extra / 4) * 0.28) * tokenSize,
+    y: (-0.66 - Math.floor(extra / 4) * 0.28) * tokenSize,
   };
 }
 
@@ -278,36 +312,24 @@ function getTokenWorldSize(token, bounds, sceneDpi) {
   return Math.min(bounds.width, bounds.height) || sceneDpi;
 }
 
-function normalizeStress(raw) {
-  const cur = Math.max(0, Number.isFinite(Number(raw?.current)) ? Math.round(Number(raw.current)) : 0);
-  const max = Math.max(1, Number.isFinite(Number(raw?.max)) ? Math.round(Number(raw.max)) : 10);
-  const visible = Boolean(raw?.visible);
-  const pos = raw?.pos === "tight" ? "tight" : "under_name";
-  return { current: cur, max, visible, pos };
-}
+function renderBarsUI(enabled) {
+  for (const el of [elHpCur, elHpMax, elStCur, elStMax, elBtnHpVis, elBtnStVis, elBtnBarPos, ...stepButtons]) {
+    el.disabled = !enabled;
+  }
+  if (document.activeElement !== elHpCur) elHpCur.value = String(currentBars.hp.current);
+  if (document.activeElement !== elHpMax) elHpMax.value = String(currentBars.hp.max);
+  if (document.activeElement !== elStCur) elStCur.value = String(currentBars.stress.current);
+  if (document.activeElement !== elStMax) elStMax.value = String(currentBars.stress.max);
 
-function renderStressUI(enabled) {
-  elStressCur.disabled = !enabled;
-  elStressMax.disabled = !enabled;
-  elBtnStressPos.disabled = !enabled;
-  elBtnStressVis.disabled = !enabled;
-  for (const b of stepButtons) b.disabled = !enabled;
+  elBtnHpVis.textContent = currentBars.hp.visible ? "隐" : "显";
+  elBtnHpVis.classList.toggle("on", currentBars.hp.visible);
+  elBtnStVis.textContent = currentBars.stress.visible ? "隐" : "显";
+  elBtnStVis.classList.toggle("on", currentBars.stress.visible);
+  elBtnBarPos.textContent = currentBars.pos === "under_name" ? "名牌下" : "贴底(原名牌位)";
 
-  const { current, max, visible, pos } = currentStress;
-  if (document.activeElement !== elStressCur) elStressCur.value = String(current);
-  if (document.activeElement !== elStressMax) elStressMax.value = String(max);
-
-  const pal = getStressPalette(current, max);
-  const pct = Math.max(0, Math.min(100, (current / Math.max(1, max)) * 100));
-  elStressPreview.style.width = `${pct}%`;
-  elStressPreview.style.background = pal.fill;
-
-  elStressStage.textContent = pal.stage;
-  elStressStage.className = `stress-stage ${pal.cls}`.trim();
-
-  elBtnStressPos.textContent = pos === "tight" ? "贴底" : "名牌下";
-  elBtnStressVis.textContent = visible ? "隐藏槽" : "显示槽";
-  elBtnStressVis.classList.toggle("on", visible);
+  const stVis = getStressVisual(currentBars.stress.current, currentBars.stress.max);
+  elStressStage.textContent = stVis.stage;
+  elStressStage.className = `stress-stage ${stVis.cls}`.trim();
 }
 
 function renderGrid() {
@@ -334,9 +356,7 @@ function renderGrid() {
     for (const s of items) {
       const btn = document.createElement("button");
       btn.className = "status-btn";
-      if ((activeKeyCounts.get(s.key) || 0) > 0) {
-        btn.classList.add("active");
-      }
+      if ((activeKeyCounts.get(s.key) || 0) > 0) btn.classList.add("active");
       btn.dataset.key = s.key;
       btn.innerHTML = `<img src="./icons/${s.file}" alt="${s.label}" /><span>${s.label}</span>`;
       btn.addEventListener("click", () => toggleStatus(s.key));
@@ -368,8 +388,8 @@ async function refreshState() {
     elTargetInfo.classList.add("empty");
     elBtnClear.disabled = true;
     activeKeyCounts = new Map();
-    currentStress = { current: 0, max: 10, visible: false, pos: "under_name" };
-    renderStressUI(false);
+    currentBars = normalizeBars(null);
+    renderBarsUI(false);
     renderGrid();
     return;
   }
@@ -380,9 +400,8 @@ async function refreshState() {
   elTargetInfo.classList.remove("empty");
   elBtnClear.disabled = false;
 
-  // 读取首个选中棋子的压力槽状态
-  currentStress = normalizeStress(tokens[0].metadata?.[STRESS_DATA_KEY]);
-  renderStressUI(true);
+  currentBars = normalizeBars(tokens[0]);
+  renderBarsUI(true);
 
   const targetSet = new Set(currentTargetIds);
   const allBadges = await OBR.scene.items.getItems(
@@ -398,21 +417,20 @@ async function refreshState() {
   renderGrid();
 }
 
-function buildStressBarItems(token, bounds, tokenSize, stress) {
-  const { current, max, pos } = stress;
-  const pal = getStressPalette(current, max);
-  const ratio = Math.max(0, Math.min(1, current / Math.max(1, max)));
-
-  const barW = tokenSize * 0.94;
-  const barH = tokenSize * 0.19;
-  const strokeW = Math.max(2, tokenSize * 0.018);
-  const pad = Math.max(2, strokeW * 0.9);
-  const innerW = Math.max(2, barW - pad * 2);
-  const innerH = Math.max(2, barH - pad * 2);
+function buildPixelBarItems(kind, token, bounds, tokenSize, barState, slotIndex, posMode, sceneDpi) {
+  // 与 128x128 像素棋子保持严格 1:1 像素颗粒密度！
+  const px = tokenSize / 128;
+  const barW = 110 * px;
+  const barH = 20 * px;
 
   const barLeft = bounds.center.x - barW / 2;
-  // "under_name" 自动避开枭熊默认底部名牌；"tight" 紧贴棋子底缘
-  const barTop = bounds.center.y + tokenSize * (pos === "tight" ? 0.51 : 0.72);
+  // tight: 直接落在原「比尔」名牌位 (+0.425*S)；under_name: 留出名牌空位 (+0.68*S)
+  const baseTop = bounds.center.y + tokenSize * (posMode === "under_name" ? 0.68 : 0.425);
+  const barTop = baseTop + slotIndex * (barH + 0.5 * px);
+
+  const { current, max } = barState;
+  const ratio = Math.max(0, Math.min(1, current / Math.max(1, max)));
+  const vis = kind === "hp" ? getHpVisual(current, max) : getStressVisual(current, max);
 
   const attachCommon = (builder, partName) => {
     builder
@@ -420,8 +438,8 @@ function buildStressBarItems(token, bounds, tokenSize, stress) {
       .attachedTo(token.id)
       .locked(true)
       .disableHit(true)
-      .name(`压力槽:${partName}`)
-      .metadata({ [STRESS_PART_KEY]: partName });
+      .name(`${kind === "hp" ? "HP条" : "压力槽"}:${partName}`)
+      .metadata({ [BAR_PART_KEY]: `${kind}_${partName}` });
     if (typeof builder.disableAttachmentBehavior === "function") {
       builder.disableAttachmentBehavior(["ROTATION"]);
     }
@@ -430,67 +448,81 @@ function buildStressBarItems(token, bounds, tokenSize, stress) {
 
   const items = [];
 
-  // 1. 暗色像素风底槽 + 状态联动描边
-  const bg = buildShape()
-    .shapeType("RECTANGLE")
-    .width(barW)
-    .height(barH)
+  // 1. 像素底框 PNG（440x80 = 110x20 logical px * 4，左上角对齐 barLeft, barTop）
+  const bgUrl = new URL(`./bars/${vis.bgFile}`, BASE_URL).href;
+  const bgScale = barW / sceneDpi;
+  const bgImg = buildImage(
+    { width: 440, height: 80, mime: "image/png", url: bgUrl },
+    { dpi: 440, offset: { x: 0, y: 0 } }
+  )
     .position({ x: barLeft, y: barTop })
-    .fillColor("#171226")
-    .fillOpacity(0.95)
-    .strokeColor(pal.border)
-    .strokeOpacity(1)
-    .strokeWidth(strokeW);
-  items.push(attachCommon(bg, "bg"));
+    .scale({ x: bgScale, y: bgScale });
+  items.push(attachCommon(bgImg, "bg"));
 
-  // 2. 动态彩色进度填充条
+  // 2. 动态彩色像素进度条 + 顶部像素高光条（精确落在右侧槽 x=32..104, y=3..14 内）
   if (ratio > 0) {
-    const fill = buildShape()
+    const fillW = Math.max(2 * px, Math.round(73 * ratio) * px);
+    const fillShape = buildShape()
       .shapeType("RECTANGLE")
-      .width(Math.max(2, innerW * ratio))
-      .height(innerH)
-      .position({ x: barLeft + pad, y: barTop + pad })
-      .fillColor(pal.fill)
+      .width(fillW)
+      .height(12 * px)
+      .position({ x: barLeft + 32 * px, y: barTop + 3 * px })
+      .fillColor(vis.fill)
       .fillOpacity(1)
       .strokeOpacity(0)
       .strokeWidth(0);
-    items.push(attachCommon(fill, "fill"));
+    items.push(attachCommon(fillShape, "fill"));
+
+    const hiShape = buildShape()
+      .shapeType("RECTANGLE")
+      .width(fillW)
+      .height(2 * px)
+      .position({ x: barLeft + 32 * px, y: barTop + 3 * px })
+      .fillColor("#ffffff")
+      .fillOpacity(0.28)
+      .strokeOpacity(0)
+      .strokeWidth(0);
+    items.push(attachCommon(hiShape, "hi"));
   }
 
-  // 3. 50% 临界点亮黄中线刻度
-  const tickW = Math.max(2, tokenSize * 0.016);
-  const tick = buildShape()
-    .shapeType("RECTANGLE")
-    .width(tickW)
-    .height(barH)
-    .position({ x: bounds.center.x - tickW / 2, y: barTop })
-    .fillColor("#fff275")
-    .fillOpacity(0.92)
-    .strokeOpacity(0)
-    .strokeWidth(0);
-  items.push(attachCommon(tick, "tick"));
+  // 3. 压力槽专属 50% 临界点亮黄像素中线
+  if (kind === "stress") {
+    const tick = buildShape()
+      .shapeType("RECTANGLE")
+      .width(2 * px)
+      .height(14 * px)
+      .position({ x: barLeft + 68 * px, y: barTop + 2 * px })
+      .fillColor("#fff275")
+      .fillOpacity(0.95)
+      .strokeOpacity(0)
+      .strokeWidth(0);
+    items.push(attachCommon(tick, "tick"));
+  }
 
-  // 4. 居中清晰数值文字（如：压力 5/10）
-  const tb = buildText()
-    .textType("PLAIN")
-    .plainText(`压力 ${current}/${max}`)
-    .width(barW)
-    .height(barH)
-    .position({ x: barLeft, y: barTop })
-    .fontSize(Math.max(10, Math.round(barH * 0.62)))
-    .fontWeight(700)
-    .fontFamily("monospace")
-    .textAlign("CENTER")
-    .textAlignVertical("MIDDLE")
-    .fillColor("#ffffff");
-  if (typeof tb.padding === "function") tb.padding(0);
-  if (typeof tb.lineHeight === "function") tb.lineHeight(1);
-  items.push(attachCommon(tb, "label"));
+  // 4. 像素数字贴图（PressStart2P 1-bit，与 7/3、REC 完全一致）
+  const chars = `${current}/${max}`.split("");
+  const digitStep = chars.length >= 6 ? 8 * px : 9 * px;
+  const totalW = (chars.length - 1) * digitStep;
+  const wellCx = barLeft + 68.5 * px;
+  const wellCy = barTop + 9.0 * px;
+  const digitScale = (12 * px) / sceneDpi;
+
+  chars.forEach((ch, idx) => {
+    const fname = ch === "/" ? "d_slash.png" : `d_${ch}.png`;
+    const dUrl = new URL(`./bars/${fname}`, BASE_URL).href;
+    const dImg = buildImage(
+      { width: 48, height: 48, mime: "image/png", url: dUrl },
+      { dpi: 48, offset: { x: 24, y: 24 } }
+    )
+      .position({ x: wellCx - totalW / 2 + idx * digitStep, y: wellCy })
+      .scale({ x: digitScale, y: digitScale });
+    items.push(attachCommon(dImg, `d${idx}`));
+  });
 
   return items;
 }
 
-async function applyStressUpdate(patch) {
+async function applyBarsUpdate(mutator) {
   const tokens = await resolveTargetTokens();
   if (busy || tokens.length === 0) return;
   busy = true;
@@ -499,32 +531,33 @@ async function applyStressUpdate(patch) {
     const targetIds = tokens.map((t) => t.id);
     const targetSet = new Set(targetIds);
 
-    // 计算每个棋子的新压力状态
     const nextById = new Map();
     for (const token of tokens) {
-      const prev = normalizeStress(token.metadata?.[STRESS_DATA_KEY]);
-      const next = normalizeStress({
-        current: patch.delta !== undefined ? prev.current + patch.delta : (patch.current ?? prev.current),
-        max: patch.max ?? prev.max,
-        visible: patch.visible !== undefined ? patch.visible : prev.visible,
-        pos: patch.pos ?? prev.pos,
-      });
+      const prev = normalizeBars(token);
+      const next = mutator(prev);
+      next.hp.current = Math.max(0, Math.round(next.hp.current));
+      next.hp.max = Math.max(1, Math.round(next.hp.max));
+      next.stress.current = Math.max(0, Math.round(next.stress.current));
+      next.stress.max = Math.max(1, Math.round(next.stress.max));
       nextById.set(token.id, next);
     }
 
-    // 1. 将最新数值写回棋子 metadata
     await OBR.scene.items.updateItems(targetIds, (drafts) => {
       for (const item of drafts) {
         const next = nextById.get(item.id);
         if (next) {
-          item.metadata[STRESS_DATA_KEY] = next;
+          item.metadata[BARS_DATA_KEY] = next;
+          delete item.metadata[OLD_STRESS_DATA_KEY];
         }
       }
     });
 
-    // 2. 删除旧的压力槽图形并按最新数值重绘
+    // 同步清理新旧版本的血条/压力条图元
     const oldParts = await OBR.scene.items.getItems(
-      (it) => it.layer === "ATTACHMENT" && targetSet.has(it.attachedTo) && Boolean(it.metadata?.[STRESS_PART_KEY])
+      (it) =>
+        it.layer === "ATTACHMENT" &&
+        targetSet.has(it.attachedTo) &&
+        Boolean(it.metadata?.[BAR_PART_KEY] || it.metadata?.[OLD_STRESS_PART_KEY])
     );
     if (oldParts.length > 0) {
       await OBR.scene.items.deleteItems(oldParts.map((p) => p.id));
@@ -533,17 +566,24 @@ async function applyStressUpdate(patch) {
     const toAdd = [];
     for (const token of tokens) {
       const next = nextById.get(token.id);
-      if (!next?.visible) continue;
+      if (!next) continue;
+      if (!next.hp.visible && !next.stress.visible) continue;
       const bounds = await OBR.scene.items.getItemBounds([token.id]);
       const tokenSize = getTokenWorldSize(token, bounds, sceneDpi);
-      toAdd.push(...buildStressBarItems(token, bounds, tokenSize, next));
+      let slot = 0;
+      if (next.hp.visible) {
+        toAdd.push(...buildPixelBarItems("hp", token, bounds, tokenSize, next.hp, slot++, next.pos, sceneDpi));
+      }
+      if (next.stress.visible) {
+        toAdd.push(...buildPixelBarItems("stress", token, bounds, tokenSize, next.stress, slot++, next.pos, sceneDpi));
+      }
     }
     if (toAdd.length > 0) {
       await OBR.scene.items.addItems(toAdd);
     }
 
-    currentStress = nextById.get(tokens[0].id) || currentStress;
-    renderStressUI(true);
+    currentBars = nextById.get(tokens[0].id) || currentBars;
+    renderBarsUI(true);
   } finally {
     busy = false;
   }
@@ -629,9 +669,7 @@ async function reflowTokens(tokens, toggleKey = null, clearAll = false) {
       }
     }
 
-    if (toDelete.length > 0) {
-      await OBR.scene.items.deleteItems(toDelete);
-    }
+    if (toDelete.length > 0) await OBR.scene.items.deleteItems(toDelete);
     if (positionUpdates.size > 0) {
       await OBR.scene.items.updateItems(Array.from(positionUpdates.keys()), (drafts) => {
         for (const item of drafts) {
@@ -643,9 +681,7 @@ async function reflowTokens(tokens, toggleKey = null, clearAll = false) {
         }
       });
     }
-    if (toAdd.length > 0) {
-      await OBR.scene.items.addItems(toAdd);
-    }
+    if (toAdd.length > 0) await OBR.scene.items.addItems(toAdd);
 
     await refreshState();
   } finally {
@@ -659,29 +695,47 @@ async function toggleStatus(key) {
   await reflowTokens(tokens, key, false);
 }
 
-// 绑定压力槽事件（点加减号会自动显示压力槽）
+// 绑定 HP & 压力加减、输入与显隐
 for (const btn of stepButtons) {
   btn.addEventListener("click", () => {
+    const bar = btn.dataset.bar;
     const delta = Number(btn.dataset.delta || 0);
-    applyStressUpdate({ delta, visible: true });
+    applyBarsUpdate((prev) => {
+      prev[bar].current += delta;
+      prev[bar].visible = true;
+      return prev;
+    });
   });
 }
 
-elStressCur.addEventListener("change", () => {
-  applyStressUpdate({ current: Number(elStressCur.value || 0), visible: true });
+elHpCur.addEventListener("change", () => {
+  const v = Number(elHpCur.value || 0);
+  applyBarsUpdate((prev) => { prev.hp.current = v; prev.hp.visible = true; return prev; });
+});
+elHpMax.addEventListener("change", () => {
+  const v = Math.max(1, Number(elHpMax.value || 12));
+  applyBarsUpdate((prev) => { prev.hp.max = v; prev.hp.visible = true; return prev; });
+});
+elStCur.addEventListener("change", () => {
+  const v = Number(elStCur.value || 0);
+  applyBarsUpdate((prev) => { prev.stress.current = v; prev.stress.visible = true; return prev; });
+});
+elStMax.addEventListener("change", () => {
+  const v = Math.max(1, Number(elStMax.value || 10));
+  applyBarsUpdate((prev) => { prev.stress.max = v; prev.stress.visible = true; return prev; });
 });
 
-elStressMax.addEventListener("change", () => {
-  applyStressUpdate({ max: Math.max(1, Number(elStressMax.value || 10)), visible: true });
+elBtnHpVis.addEventListener("click", () => {
+  applyBarsUpdate((prev) => { prev.hp.visible = !prev.hp.visible; return prev; });
 });
-
-elBtnStressVis.addEventListener("click", () => {
-  applyStressUpdate({ visible: !currentStress.visible });
+elBtnStVis.addEventListener("click", () => {
+  applyBarsUpdate((prev) => { prev.stress.visible = !prev.stress.visible; return prev; });
 });
-
-elBtnStressPos.addEventListener("click", () => {
-  const nextPos = currentStress.pos === "tight" ? "under_name" : "tight";
-  applyStressUpdate({ pos: nextPos, visible: true });
+elBtnBarPos.addEventListener("click", () => {
+  applyBarsUpdate((prev) => {
+    prev.pos = prev.pos === "tight" ? "under_name" : "tight";
+    return prev;
+  });
 });
 
 elBtnClear.addEventListener("click", async () => {
@@ -695,9 +749,7 @@ elBtnLayout.addEventListener("click", async () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, layoutMode);
   elBtnLayout.textContent = layoutMode === "rim" ? "绕边排队" : "底边横排";
   const tokens = await resolveTargetTokens();
-  if (tokens.length > 0) {
-    await reflowTokens(tokens, null, false);
-  }
+  if (tokens.length > 0) await reflowTokens(tokens, null, false);
 });
 
 elSearch.addEventListener("input", renderGrid);
@@ -706,9 +758,7 @@ OBR.onReady(async () => {
   elBtnLayout.textContent = layoutMode === "rim" ? "绕边排队" : "底边横排";
   const params = new URLSearchParams(window.location.search);
   const rawTargets = params.get("targets");
-  if (rawTargets) {
-    fixedTargetIds = rawTargets.split(",").filter(Boolean);
-  }
+  if (rawTargets) fixedTargetIds = rawTargets.split(",").filter(Boolean);
 
   await refreshState();
 

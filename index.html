@@ -3,42 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>孟子的战斗轮状态标</title>
+  <title>孟子的战斗轮 · 状态与数值槽</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="title-row">
       <span class="badge-dot"></span>
-      <h1>孟子战斗轮 · 状态与压力</h1>
+      <h1>孟子战斗轮 · 血条 / 压力 / 状态</h1>
       <button id="btn-clear" class="btn-danger" title="清空当前选中棋子的全部状态标">清状态</button>
     </div>
     <div id="target-info" class="target-info">请在地图上选中或右键一个角色棋子</div>
 
-    <!-- 动态压力槽控制面板 -->
-    <section class="stress-box">
-      <div class="stress-head">
-        <span class="stress-title">压力槽</span>
+    <!-- 像素双条控制区（HP + 压力） -->
+    <section class="bars-box">
+      <div class="bars-head">
+        <span class="bars-title">像素数值条</span>
         <span id="stress-stage" class="stress-stage">正常</span>
-        <div class="stress-toggles">
-          <button id="btn-stress-pos" class="btn-mini" title="切换压力槽垂直位置">名牌下</button>
-          <button id="btn-stress-vis" class="btn-mini" title="显示或隐藏棋子下方压力槽">显示槽</button>
-        </div>
+        <button id="btn-bar-pos" class="btn-mini" title="切换血条/压力槽高度">贴底(原名牌位)</button>
       </div>
-      <div class="stress-bar-preview">
-        <div id="stress-fill-preview" class="stress-fill-preview"></div>
-        <div class="stress-mid-tick" title="50% 临界点"></div>
-      </div>
-      <div class="stress-controls">
-        <button class="btn-step" data-delta="-5">-5</button>
-        <button class="btn-step" data-delta="-1">-1</button>
-        <div class="stress-inputs">
-          <input id="stress-cur" type="number" min="0" max="999" value="0" title="当前压力值" />
+
+      <!-- HP 血条行 -->
+      <div class="bar-row">
+        <span class="bar-tag hp">HP</span>
+        <button class="btn-step" data-bar="hp" data-delta="-5">-5</button>
+        <button class="btn-step" data-bar="hp" data-delta="-1">-1</button>
+        <div class="num-inputs">
+          <input id="hp-cur" type="number" min="0" max="999" value="12" title="当前HP" />
           <span class="slash">/</span>
-          <input id="stress-max" type="number" min="1" max="999" value="10" title="压力上限" />
+          <input id="hp-max" type="number" min="1" max="999" value="12" title="HP上限" />
         </div>
-        <button class="btn-step" data-delta="1">+1</button>
-        <button class="btn-step" data-delta="5">+5</button>
+        <button class="btn-step" data-bar="hp" data-delta="1">+1</button>
+        <button class="btn-step" data-bar="hp" data-delta="5">+5</button>
+        <button id="btn-hp-vis" class="btn-eye" title="显示或隐藏HP血条">显</button>
+      </div>
+
+      <!-- 压力槽行 -->
+      <div class="bar-row">
+        <span class="bar-tag st">压力</span>
+        <button class="btn-step" data-bar="stress" data-delta="-5">-5</button>
+        <button class="btn-step" data-bar="stress" data-delta="-1">-1</button>
+        <div class="num-inputs">
+          <input id="st-cur" type="number" min="0" max="999" value="0" title="当前压力" />
+          <span class="slash">/</span>
+          <input id="st-max" type="number" min="1" max="999" value="10" title="压力上限" />
+        </div>
+        <button class="btn-step" data-bar="stress" data-delta="1">+1</button>
+        <button class="btn-step" data-bar="stress" data-delta="5">+5</button>
+        <button id="btn-st-vis" class="btn-eye" title="显示或隐藏压力槽">显</button>
       </div>
     </section>
 
