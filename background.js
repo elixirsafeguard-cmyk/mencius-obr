@@ -9,7 +9,7 @@ OBR.onReady(() => {
     icons: [
       {
         icon: `${BASE_PATH}icon.svg`,
-        label: "孟子状态/血条/压力",
+        label: "孟子状态/专长/疯狂",
         filter: {
           every: [
             { key: "layer", value: "CHARACTER" },
@@ -23,8 +23,8 @@ OBR.onReady(() => {
       OBR.popover.open({
         id: `${EXT_ID}/popover`,
         url: `${BASE_PATH}index.html?targets=${encodeURIComponent(ids)}`,
-        height: 660,
-        width: 386,
+        height: 700,
+        width: 398,
         anchorElementId: elementId,
         anchorOrigin: { horizontal: "RIGHT", vertical: "CENTER" },
         transformOrigin: { horizontal: "LEFT", vertical: "CENTER" },

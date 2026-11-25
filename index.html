@@ -3,59 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>孟子的战斗轮 · 状态与数值槽</title>
+  <title>孟子的战斗轮 v3.5 · 状态与疯狂面板</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="title-row">
       <span class="badge-dot"></span>
-      <h1>孟子战斗轮 · 血条 / 压力 / 状态</h1>
-      <button id="btn-clear" class="btn-danger" title="清空当前选中棋子的全部状态标">清状态</button>
+      <h1>孟子战斗轮 v3.5 · 数值 / 疯狂 / 专长</h1>
+      <button id="btn-clear" class="btn-danger" title="清空当前选中棋子的全部状态与疯狂">清状态</button>
     </div>
     <div id="target-info" class="target-info">请在地图上选中或右键一个角色棋子</div>
 
-    <!-- 像素双条控制区（HP + 压力） -->
     <section class="bars-box">
       <div class="bars-head">
-        <span class="bars-title">像素数值条</span>
-        <span id="stress-stage" class="stress-stage">正常</span>
-        <button id="btn-bar-pos" class="btn-mini" title="切换血条/压力槽高度">贴底(原名牌位)</button>
+        <span id="hp-stage" class="stage-pill hp-ok">HP正常</span>
+        <span id="stress-stage" class="stage-pill st-ok">压力正常</span>
+        <div class="head-actions">
+          <button id="btn-auto-link" class="btn-mini on" title="压力≥50%/100%、HP=0、达摩受伤判死、红泪/红刀自动联动">联动:开</button>
+          <button id="btn-bar-pos" class="btn-mini" title="切换血条/压力槽高度">贴底</button>
+        </div>
       </div>
 
-      <!-- HP 血条行 -->
-      <div class="bar-row">
-        <span class="bar-tag hp">HP</span>
-        <button class="btn-step" data-bar="hp" data-delta="-5">-5</button>
-        <button class="btn-step" data-bar="hp" data-delta="-1">-1</button>
-        <div class="num-inputs">
-          <input id="hp-cur" type="number" min="0" max="999" value="12" title="当前HP" />
-          <span class="slash">/</span>
-          <input id="hp-max" type="number" min="1" max="999" value="12" title="HP上限" />
-        </div>
-        <button class="btn-step" data-bar="hp" data-delta="1">+1</button>
-        <button class="btn-step" data-bar="hp" data-delta="5">+5</button>
-        <button id="btn-hp-vis" class="btn-eye" title="显示或隐藏HP血条">显</button>
+      <!-- 达摩克里斯判死快捷提示条 -->
+      <div id="damo-alert" class="damo-alert hidden">
+        <span id="damo-msg">⚔ 达摩克里斯已判死：回合末投 d100（01-05 濒死）</span>
+        <button id="btn-damo-roll" class="btn-damo">🎲 判死d100</button>
       </div>
 
-      <!-- 压力槽行 -->
-      <div class="bar-row">
-        <span class="bar-tag st">压力</span>
-        <button class="btn-step" data-bar="stress" data-delta="-5">-5</button>
-        <button class="btn-step" data-bar="stress" data-delta="-1">-1</button>
-        <div class="num-inputs">
-          <input id="st-cur" type="number" min="0" max="999" value="0" title="当前压力" />
-          <span class="slash">/</span>
-          <input id="st-max" type="number" min="1" max="999" value="10" title="压力上限" />
+      <!-- 压力过载 / 疯狂分支快捷提示条 -->
+      <div id="mad-alert" class="mad-alert hidden">
+        <span id="mad-msg">🌀 压力过载！</span>
+        <div class="mad-actions">
+          <button id="btn-mad-roll" class="btn-mad">🎲 抽疯狂</button>
+          <button id="btn-mad-calm" class="btn-calm hidden" title="精神分析安抚成功：暂时压制疯狂副作用 1 轮">压制1轮</button>
         </div>
-        <button class="btn-step" data-bar="stress" data-delta="1">+1</button>
-        <button class="btn-step" data-bar="stress" data-delta="5">+5</button>
-        <button id="btn-st-vis" class="btn-eye" title="显示或隐藏压力槽">显</button>
       </div>
+
+      <!-- HP 血条行 + 1/3 红泪血线 -->
+      <div class="bar-unit">
+        <div class="bar-row">
+          <span class="bar-tag hp">HP</span>
+          <button class="btn-step" data-bar="hp" data-delta="-5">-5</button>
+          <button class="btn-step" data-bar="hp" data-delta="-1">-1</button>
+          <div class="num-inputs">
+            <input id="hp-cur" type="number" min="0" max="999" value="12" title="当前HP" />
+            <span class="slash">/</span>
+            <input id="hp-max" type="number" min="1" max="999" value="12" title="HP上限" />
+          </div>
+          <button class="btn-step" data-bar="hp" data-delta="1">+1</button>
+          <button class="btn-step" data-bar="hp" data-delta="5">+5</button>
+          <button id="btn-hp-vis" class="btn-eye" title="显示或隐藏HP血条">显</button>
+        </div>
+        <div class="mini-meter" title="黄色刻度线 = 1/3 红泪血线">
+          <div id="hp-meter-fill" class="mini-fill"></div>
+          <div class="mini-tick" style="left: 33.333%;"></div>
+        </div>
+      </div>
+
+      <!-- 压力槽行 + 50% 临界线 -->
+      <div class="bar-unit">
+        <div class="bar-row">
+          <span class="bar-tag st">压力</span>
+          <button class="btn-step" data-bar="stress" data-delta="-5">-5</button>
+          <button class="btn-step" data-bar="stress" data-delta="-1">-1</button>
+          <div class="num-inputs">
+            <input id="st-cur" type="number" min="0" max="999" value="0" title="当前压力" />
+            <span class="slash">/</span>
+            <input id="st-max" type="number" min="1" max="999" value="10" title="压力上限" />
+          </div>
+          <button class="btn-step" data-bar="stress" data-delta="1">+1</button>
+          <button class="btn-step" data-bar="stress" data-delta="5">+5</button>
+          <button id="btn-st-vis" class="btn-eye" title="显示或隐藏压力槽">显</button>
+        </div>
+        <div class="mini-meter" title="黄色刻度线 = 50% 临界点">
+          <div id="st-meter-fill" class="mini-fill"></div>
+          <div class="mini-tick" style="left: 50%;"></div>
+        </div>
+      </div>
+
+      <!-- 可折叠：本战限次资源 + 被动联动 + 固化疯狂锁定 -->
+      <details class="tracker-drawer">
+        <summary>
+          <span>📋 本战限次 / 红泪红刀 / 固化疯狂</span>
+          <span id="tracker-summary" class="tracker-summary"></span>
+        </summary>
+        <div class="tracker-body">
+          <div class="tracker-section">
+            <span class="tracker-label">被动联动 &amp; 固化疯狂预设</span>
+            <div class="chip-wrap" id="passive-chips"></div>
+            <div class="fixed-mad-row">
+              <span>固化疯狂锁定：</span>
+              <select id="fixed-mad-select">
+                <option value="">无（过载时随机抽表）</option>
+              </select>
+            </div>
+          </div>
+          <div class="tracker-section">
+            <span class="tracker-label">每战限1次（点亮=已用）</span>
+            <div class="chip-wrap" id="once-chips"></div>
+          </div>
+        </div>
+      </details>
     </section>
 
     <div class="controls-row">
-      <input id="search-input" type="text" placeholder="搜索状态（如：出血、措手、50%）..." />
+      <input id="search-input" type="text" placeholder="搜索状态/专长/疯狂（如：利他、模仿、亢奋、达摩）..." />
       <button id="btn-layout" class="btn-mode" title="切换图标排队方式">绕边排队</button>
     </div>
   </header>
